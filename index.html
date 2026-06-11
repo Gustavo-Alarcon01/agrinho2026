@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SustentaAgro: Do 1 ao 20 - Agrinho 2026</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #4caf50;
+            --accent: #ffb300;
+            --dark: #1b5e20;
+            --bg: #f4f9f4;
+            --danger: #d32f2f;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; user-select: none; }
+        body { background: var(--bg); color: #333; padding: 15px; }
+
+        header {
+            background: linear-gradient(135deg, var(--dark), var(--primary));
+            color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px;
+        }
+        header p { font-size: 0.85rem; color: #c8e6c9; margin-top: 5px; }
+
+        /* PAINEL DE STATUS (HUD) */
+        .hud { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .hud-card { background: white; padding: 12px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-bottom: 4px solid var(--primary-light); }
+        .hud-card h3 { font-size: 0.75rem; color: #666; text-transform: uppercase; }
+        .hud-card p { font-size: 1.3rem; font-weight: bold; color: var(--dark); margin-top: 2px; }
+
+        /* CENÁRIO EVOLUTIVO VISUAL */
+        .scene-container {
+            background: #81d4fa; height: 160px; border-radius: 10px; position: relative; overflow: hidden; margin-bottom: 15px; border: 3px solid #4fc3f7;
+        }
+        .scene-ground { position: absolute; bottom: 0; width: 100%; height: 45px; background: #8d6e63; transition: background 1s; }
+        .scene-element { position: absolute; bottom: 40px; font-size: 2rem; transition: all 0.5s ease; }
+
+        /* CONTAINER PRINCIPAL DO JOGO */
+        .game-grid { display: grid; grid-template-columns: 1fr 360px; gap: 15px; }
+        @media(max-width: 950px) { .game-grid { grid-template-columns: 1fr; } }
+
+        /* SEÇÕES / ABAS */
+        .panel { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .panel h2 { font-size: 1.2rem; color: var(--dark); margin-bottom: 10px; border-bottom: 2px solid var(--bg); padding-bottom: 5px; }
+
+        /* LOTES DE TERRA */
+        .farm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+        .plot {
+            aspect-ratio: 1; background: #a1887f; border-radius: 8px; border: 3px solid #5d4037;
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 0.8rem; text-align: center; position: relative; padding: 5px;
+        }
+        .plot.growing { background: #bcaaa4; }
+        .plot.ready { background: #4caf50; border-color: #2e7d32; }
+        .plot-emoji { font-size: 1.6rem; }
+        
+        .progress-bar { position: absolute; bottom: 4px; width: 80%; height: 4px; background: rgba(0,0,0,0.2); border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #00ff00; width: 0%; }
+
+        /* LISTAS DE ITENS (LOJA, ANIMAIS, UPGRADES) */
+        .item-list { display: flex; flex-direction: column; gap: 8px; }
+        .card-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #f9f9f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid var(--primary-light);
+            font-size: 0.85rem;
+        }
+        .card-item p { font-size: 0.75rem; color: #666; }
+        .card-item.locked { opacity: 0.5; border-left-color: #9e9e9e; }
+
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 6px 10px;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.75rem;
+        }
+        .btn:hover { background: var(--dark); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* QUICK TIME EVENT (QTE) POPUP */
+        .qte-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            display: none; align-items: center; justify-content: center; z-index: 1000; color: white; text-align: center;
+        }
+        .qte-box { background: #212121; padding: 30px; border-radius: 12px; border: 4px solid var(--danger); max-width: 400px; width: 90%; }
+        .qte-key {
+            display: inline-block; background: white; color: black; font-size: 2.5rem; font-weight: bold;
+            padding: 10px 25px; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 0 #bcbcbc;
+            animation: pulse 0.5s infinite alternate;
+        }
+        .qte-progress { width: 100%; height: 10px; background: #555; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .qte-fill { height: 100%; background: var(--danger); width: 100%; }
+
+        /* LOGS */
+        .log-box { background: #263238; color: #80cbc4; font-family: monospace; padding: 10px; border-radius: 6px; height: 90px; overflow-y: auto; font-size: 0.75rem; }
+
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>SustentaAgro: Rumo ao Nível 20</h1>
+        <p>• Equilíbrio Perfeito entre Produção, Pecuária Inteligente e Meio Ambiente</p>
+    </header>
+
+    <div class="hud">
+        <div class="hud-card"><h3>Moedas Verdes</h3><p id="txt-money">$ 150</p></div>
+        <div class="hud-card"><h3>Estação</h3><p id="txt-season">🌱 Primavera</p></div>
+        <div class="hud-card"><h3>Sustentabilidade</h3><p id="txt-sust">60%</p></div>
+        <div class="hud-card"><h3>Nível da Fazenda</h3><p id="txt-level">1 (Iniciante)</p></div>
+    </div>
+
+    <div class="scene-container" id="scene">
+        <div class="scene-ground" id="scene-ground"></div>
+    </div>
+
+    <div class="game-grid">
+        
+        <div class="left-column">
+            <div class="panel">
+                <h2>Campos de Cultivo Dinâmico</h2>
+                <div class="farm-grid" id="farm-grid"></div>
+            </div>
+
+            <div class="panel">
+                <h2>Pecuária Sustentável (Alimentar Animais)</h2>
+                <div class="item-list" id="animal-list">
+                    </div>
+            </div>
+
+            <div class="panel">
+                <h2>Histórico da Fazenda</h2>
+                <div class="log-box" id="log-box">[Sistema]: Jogo iniciado. Cultive as sementes da estação atual para progredir sem degradar o solo!</div>
+            </div>
+        </div>
+
+        <div class="right-column">
+            <div class="panel">
+                <h2>Mercado de Sementes da Estação</h2>
+                <div class="item-list" id="seed-market"></div>
+            </div>
+
+            <div class="panel" style="border: 2px dashed #9c27b0; background: #fdf5ff;">
+                <h2>Sementes Raras Encontradas</h2>
+                <p style="font-size: 0.75rem; color:#666; margin-bottom: 8px;">Sementes raras têm chance de brotar espontaneamente ao colher alimentos na estação certa!</p>
+                <div class="item-list" id="rare-seed-box">
+                    <p style="color:#999; text-align:center; font-size:0.8rem;" id="rare-empty">Nenhuma semente rara estocada.</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Armazém de Vendas (Silo)</h2>
+                <div class="item-list" id="silo-list"></div>
+            </div>
+
+            <div class="panel">
+                <h2>Tecnologias e Melhorias (Nível 1-20)</h2>
+                <div class="item-list" id="upgrade-list"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="qte-overlay" id="qte-screen">
+        <div class="qte-box">
+            <h2 style="color: var(--danger);">🚨 ALERTA DE INVASÃO!</h2>
+            <p>Alguém está tentando roubar sua colheita sustentável! Afaste-os apertando a tecla correta repetidamente antes do tempo acabar!</p>
+            <div class="qte-key" id="qte-key-display">A</div>
+            <p>Cliques restantes: <span id="qte-clicks-needed">10</span></p>
+            <div class="qte-progress"><div class="qte-fill" id="qte-timer-fill"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // BANCO DE DADOS DO JOGO
+        const SEASONS = ['🌱 Primavera', '☀️ Verão', '🍁 Outono', '❄️ Inverno'];
+        
+        const CROPS = {
+            'alpiste': { name: 'Alpiste Ecológico', season: '🌱 Primavera', cost: 10, value: 20, time: 3000, emoji: '🌾', level: 1, foodFor: 'galinha' },
+            'milho': { name: 'Milho Sustentável', season: '☀️ Verão', cost: 15, value: 32, time: 5000, emoji: '🌽', level: 3, foodFor: 'boi' },
+            'raiz': { name: 'Raízes Nutritivas', season: '🍁 Outono', cost: 20, value: 45, time: 6000, emoji: '🥕', level: 6, foodFor: 'porco' },
+            'feno': { name: 'Cevada e Feno', season: '❄️ Inverno', cost: 25, value: 55, time: 7000, emoji: '🌿', level: 9, foodFor: 'cabra' },
+            'maca': { name: 'Maçã de Pomar', season: '🌱 Primavera', cost: 35, value: 80, time: 8000, emoji: '🍎', level: 12, foodFor: 'cavalo' },
+            // Sementes raras encontradas por sorte
+            'soja_b': { name: 'Soja Rara Biodinâmica', season: 'Qualquer', cost: 0, value: 150, time: 10000, emoji: '🧬', level: 1, foodFor: 'none' }
+        };
+
+        const ANIMALS = {
+            'galinha': { name: 'Galinhas Caipiras', food: 'alpiste', reward: 25, emoji: '🐓' },
+            'boi': { name: 'Bois em Pastejo Rotacionado', food: 'milho', reward: 45, emoji: '🐂' },
+            'porco': { name: 'Porcos em Cama Sobreposta', food: 'raiz', reward: 65, emoji: '🐖' },
+            'cabra': { name: 'Cabras Leiteiras Orgânicas', food: 'feno', reward: 85, emoji: '🐐' },
+            'cavalo': { name: 'Cavalos de Manejo Limpo', food: 'maca', reward: 120, emoji: '🐎' }
+        };
+
+        const UPGRADES = [
+            { id: 1, name: 'Cisterna Costeira', level: 2, cost: 80, desc: 'Acelera culturas em 15%', active: false },
+            { id: 2, name: 'Composteira de Solo', level: 4, cost: 130, desc: '+10% Sustentabilidade fixa', active: false },
+            { id: 3, name: 'Painel Solar Fotovoltaico', level: 8, cost: 250, desc: 'Crescimento 2x mais rápido', active: false },
+            { id: 4, name: 'Cerca Viva Protetora', level: 12, cost: 400, desc: 'Reduz velocidade das invasões', active: false },
+            { id: 5, name: 'Biofábrica de Defensivos', level: 16, cost: 600, desc: 'Cultivos valem +30% no Silo', active: false },
+            { id: 6, name: 'Certificação Carbono Zero', level: 20, cost: 1000, desc: 'Atinge a meta máxima do Agro Sustentável!', active: false }
+        ];
+
+        // ESTADO GLOBAL DO JOGO
+        let state = {
+            money: 150,
+            sustainability: 65,
+            level: 1,
+            xp: 0,
+            seasonIndex: 0,
+            selectedSeed: 'alpiste',
+            silo: { alpiste: 0, milho: 0, raiz: 0, feno: 0, maca: 0, soja_b: 0 },
+            rareSeedsStock: 0
+        };
+
+        let plots = Array.from({ length: 6 }, (_, i) => ({ id: i, status: 'vazio', crop: null }));
+
+        // VARIÁVEIS DO EVENTO ANTI-ROUBO (QTE)
+        let qte = { active: false, key: 'A', clicks: 0, maxClicks: 10, timer: null, timeLeft: 100 };
+
+        // INICIALIZAÇÃO
+        function init() {
+            renderFarm();
+            renderSeedMarket();
+            renderAnimals();
+            renderSilo();
+            renderUpgrades();
+            updateUI();
+            updateScenery();
+
+            // Loops temporizados
+            setInterval(changeSeason, 40000); // Muda de estação a cada 40s
+            setInterval(triggerThiefEvent, 55000); // Tentativa de roubo a cada 55s
+        }
+
+        // ALTERAÇÃO CÍCLICA DE ESTAÇÃO
+        function changeSeason() {
+            state.seasonIndex = (state.seasonIndex + 1) % 4;
+            log(`A estação virou! Bem-vindo ao ${SEASONS[state.seasonIndex]}.`);
+            renderSeedMarket();
+            updateUI();
+        }
+
+        // SISTEMA DE GANHO DE EXPERIÊNCIA (XP) PARA CHEGAR AO NÍVEL 20
+        function gainXP(amount) {
+            state.xp += amount;
+            let nextLevelXp = state.level * 60;
+            if (state.xp >= nextLevelXp && state.level < 20) {
+                state.xp -= nextLevelXp;
+                state.level++;
+                log(`🎉 Incrível! Sua fazenda subiu para o Nível ${state.level}!`);
+                updateUI();
+                updateScenery();
+                renderSeedMarket();
+                renderUpgrades();
+            }
+        }
+
+        // REFRESH COMPLETO DA INTERFACE VISUAL
+        function updateUI() {
+            document.getElementById('txt-money').innerText = `$ ${state.money}`;
+            document.getElementById('txt-season').innerText = SEASONS[state.seasonIndex];
+            document.getElementById('txt-sust').innerText = `${state.sustainability}%`;
+            document.getElementById('txt-level').innerText = `${state.level} / 20`;
+        }
+
+        // CONTROLE DO CENÁRIO GRÁFICO BASEADO NO NÍVEL (1 A 20)
+        function updateScenery() {
+            const ground = document.getElementById('scene-ground');
+            document.querySelectorAll('.scene-element').forEach(el => el.remove());
+
+            if (state.level < 5) {
+                ground.style.background = "#8d6e63"; // Terra marrom seca
+                createSceneryObject('🚜', '10%');
+                createSceneryObject('🪓', '80%');
+            } else if (state.level < 12) {
+                ground.style.background = "#7cb342"; // Começa a esverdear
+                createSceneryObject('🏡', '15%');
+                createSceneryObject('🌳', '45%');
+                createSceneryObject('🐓', '70%');
+            } else if (state.level < 19) {
+                ground.style.background = "#4caf50"; // Verde sustentável forte
+                createSceneryObject('🏡', '10%');
+                createSceneryObject('🌳', '35%');
+                createSceneryObject('🐄', '55%');
+                createSceneryObject('♻️', '75%');
+                if (UPGRADES[2].active) createSceneryObject('☀️', '85%'); // Painel Solar visível
+            } else {
+                // Nível 20 - Ápice Ecológico
+                ground.style.background = "#1b5e20"; 
+                createSceneryObject('🏡', '5%');
+                createSceneryObject('🌳', '25%');
+                createSceneryObject('🌲', '40%');
+                createSceneryObject('🐆', '60%'); // Fauna nativa retornando
+                createSceneryObject('🌈', '80%');
+            }
+        }
+
+        function createSceneryObject(emoji, left) {
+            const el = document.createElement('div');
+            el.className = 'scene-element';
+            el.innerText = emoji;
+            el.style.left = left;
+            document.getElementById('scene').appendChild(el);
+        }
+
+        // RENDER DE SEMENTES CONFORME ESTAÇÃO E REQUISITO DE NÍVEL
+        function renderSeedMarket() {
+            const market = document.getElementById('seed-market');
+            market.innerHTML = '';
+            const currentSeasonName = SEASONS[state.seasonIndex];
+
+            Object.keys(CROPS).forEach(key => {
+                const crop = CROPS[key];
+                if (crop.cost === 0) return; // Ignora semente rara na loja de compra direta
+
+                const levelLocked = state.level < crop.level;
+                const correctSeason = crop.season === currentSeasonName;
+
+                let btnHtml = `<button class="btn" onclick="selectSeed('${key}')">Selecionar</button>`;
+                if (levelLocked) btnHtml = `<button class="btn" disabled>Nível ${crop.level}</button>`;
+
+                market.innerHTML += `
+                    <div class="card-item ${levelLocked ? 'locked' : ''}" style="${state.selectedSeed === key ? 'background:#e8f5e9; border-color:var(--dark);' : ''}">
+                        <div>
+                            <strong>${crop.emoji} ${crop.name}</strong>
+                            <p>Preço: $${crop.cost} | Adequado para: ${crop.season} ${!correctSeason ? '⚠️' : ''}</p>
+                        </div>
+                        ${btnHtml}
+                    </div>
+                `;
+            });
+        }
+
+        function selectSeed(key) {
+            state.selectedSeed = key;
+            renderSeedMarket();
+            log(`Pronto para plantar: ${CROPS[key].name}`);
+        }
+
+        // MANEJO DA PLANTAÇÃO (AGRICULTURA)
+        function renderFarm() {
+            const grid = document.getElementById('farm-grid');
+            grid.innerHTML = '';
+
+            plots.forEach(plot => {
+                const div = document.createElement('div');
+                div.className = `plot ${plot.status}`;
+                div.onclick = () => handlePlotClick(plot.id);
+
+                if (plot.status === 'vazio') {
+                    div.innerHTML = `<span class="plot-emoji">🟫</span><span>Preparado</span>`;
+                } else if (plot.status === 'crescendo') {
+                    div.innerHTML = `
+                        <span class="plot-emoji">🌱</span><span>Crescendo</span>
+                        <div class="progress-bar"><div class="progress-fill" id="fill-${plot.id}"></div></div>
+                    `;
+                } else if (plot.status === 'pronto') {
+                    div.innerHTML = `<span class="plot-emoji">${CROPS[plot.crop].emoji}</span><span>Colher!</span>`;
+                }
+                grid.appendChild(div);
+            });
+        }
+
+        function handlePlotClick(id) {
+            const plot = plots.find(p => p.id === id);
+            const selectedCrop = CROPS[state.selectedSeed];
+
+            if (plot.status === 'vazio') {
+                // Checa se semente é a rara estocada
+                if (state.selectedSeed === 'soja_b') {
+                    if (state.rareSeedsStock <= 0) { log("Nenhuma semente rara no estoque."); return; }
+                    state.rareSeedsStock--;
+                    refreshRareBox();
+                } else {
+                    if (state.money < selectedCrop.cost) { log("Moedas Verdes insuficientes."); return; }
+                    state.money -= selectedCrop.cost;
+                }
+
+                // Penalidade se desrespeitar o Zoneamento Agroclimático da estação
+                if (selectedCrop.season !== SEASONS[state.seasonIndex] && selectedCrop.season !== 'Qualquer') {
+                    log("🚨 Alerta Ecológico: Forçar o solo fora da estação certa desgasta os nutrientes!");
+                    state.sustainability = Math.max(0, state.sustainability - 15);
+                }
+
+                plot.status = 'crescendo';
+                plot.crop = state.selectedSeed;
+                renderFarm();
+                updateUI();
+
+                // Multiplicadores de melhorias compradas
+                let speedMod = 1;
+                if (UPGRADES[0].active) speedMod += 0.15;
+                if (UPGRADES[2].active) speedMod += 1.0;
+
+                const finalTime = selectedCrop.time / speedMod;
+
+                setTimeout(() => {
+                    const fill = document.getElementById(`fill-${plot.id}`);
+                    if (fill) { fill.style.transition = `width ${finalTime}ms linear`; fill.style.width = '100%'; }
+                }, 50);
+
+                setTimeout(() => {
+                    plot.status = 'pronto';
+                    renderFarm();
+                }, finalTime);
+
+            } else if (plot.status === 'pronto') {
+                // Sorte de encontrar semente rara biológica ao colher na estação correta
+                if (CROPS[plot.crop].season === SEASONS[state.seasonIndex] && Math.random() < 0.25) {
+                    state.rareSeedsStock++;
+                    log("✨ Sorte Grande! Suas boas práticas atraíram uma semente de Soja Rara Biodinâmica!");
+                    refreshRareBox();
+                }
+
+                state.silo[plot.crop]++;
+                plot.status = 'vazio';
+                const cropName = CROPS[plot.crop].name;
+                plot.crop = null;
+
+                log(`Colheu ${cropName} e guardou no Silo.`);
+                gainXP(15);
+                renderFarm();
+                renderSilo();
+                updateUI();
+            }
+        }
+
+        // GERENCIA CAIXA DE SEMENTES RARAS
+        function refreshRareBox() {
+            const box = document.getElementById('rare-seed-box');
+            if (state.rareSeedsStock > 0) {
+                box.innerHTML = `
+                    <div class="card-item" style="border-left-color: #9c27b0; background:#f3e5f5">
+                        <div><strong>🧬 Soja Rara (${state.rareSeedsStock}x)</strong><p>Gera alto lucro e +5% Sustentabilidade</p></div>
+                        <button class="btn" style="background:#9c27b0" onclick="selectSeed('soja_b')">Usar</button>
+                    </div>
+                `;
+            } else {
+                box.innerHTML = `<p style="color:#999; text-align:center; font-size:0.8rem;">Nenhuma semente rara estocada.</p>`;
+            }
+        }
+
+        // SISTEMA DE PECUÁRIA (ALIMENTAR ANIMAIS)
+        function renderAnimals() {
+            const container = document.getElementById('animal-list');
+            container.innerHTML = '';
+
+            Object.keys(ANIMALS).forEach(key => {
+                const animal = ANIMALS[key];
+                const requiredFood = CROPS[animal.food];
+                
+                container.innerHTML += `
+                    <div class="card-item" style="border-left-color: #ff9800">
+                        <div>
+                            <strong>${animal.emoji} ${animal.name}</strong>
+                            <p>Consome: ${requiredFood.emoji} ${requiredFood.name} | Recompensa: $${animal.reward} + 5% Sust.</p>
+                        </div>
+                        <button class="btn" style="background:#ff9800" onclick="feedAnimal('${key}')">Alimentar</button>
+                    </div>
+                `;
+            });
+        }
+
+        function feedAnimal(key) {
+            const animal = ANIMALS[key];
+            if (state.silo[animal.food] > 0) {
+                state.silo[animal.food]--;
+                state.money += animal.reward;
+                state.sustainability = Math.min(100, state.sustainability + 5);
+                log(`Você alimentou os ${animal.name} com ração própria. Produção valorizada!`);
+                gainXP(25);
+                renderSilo();
+                updateUI();
+            } else {
+                log(`Você não possui ${CROPS[animal.food].name} no Silo para alimentar este animal.`);
+            }
+        }
+
+        // ARMAZÉM DE VENDAS DIRETA (SILO)
+        function renderSilo() {
+            const container = document.getElementById('silo-list');
+            container.innerHTML = '';
+            let empty = true;
+
+            Object.keys(state.silo).forEach(key => {
+                const qtd = state.silo[key];
+                if (qtd > 0) {
+                    empty = false;
+                    const crop = CROPS[key];
+                    let finalPrice = crop.value;
+                    if (UPGRADES[4].active) finalPrice = Math.floor(finalPrice * 1.30); // Bônus Biofábrica
+
+                    container.innerHTML += `
+                        <div class="card-item" style="border-left-color: #2196f3">
+                            <div><strong>${crop.emoji} ${crop.name} (${qtd}x)</strong><p>Vender por: $${finalPrice}</p></div>
+                            <button class="btn" style="background:#2196f3" onclick="sellSilo('${key}', ${finalPrice})">Vender</button>
+                        </div>
+                    `;
+                }
+            });
+            if (empty) container.innerHTML = '<p style="color:#999; text-align:center; font-size:0.8rem;">Silo sem estoque comercial.</p>';
+        }
+
+        function sellSilo(key, price) {
+            if (state.silo[key] > 0) {
+                state.silo[key]--;
+                state.money += price;
+                log(`Vendeu 1x cultivo por $${price}.`);
+                renderSilo();
+                updateUI();
+            }
+        }
+
+        // MELHORIAS ADQUIRIDAS POR NÍVEL (1 AO 20)
+        function renderUpgrades() {
+            const container = document.getElementById('upgrade-list');
+            container.innerHTML = '';
+
+            UPGRADES.forEach(up => {
+                const levelLocked = state.level < up.level;
+                let btnHtml = `<button class="btn" onclick="buyUpgrade(${up.id}, ${up.cost})">Comprar ($${up.cost})</button>`;
+                if (up.active) btnHtml = `<button class="btn" disabled>Ativo</button>`;
+                else if (levelLocked) btnHtml = `<button class="btn" disabled>Nível ${up.level}</button>`;
+
+                container.innerHTML += `
+                    <div class="card-item tech ${levelLocked ? 'locked' : ''}">
+                        <div><strong>🛠️ ${up.name}</strong><p>${up.desc}</p></div>
+                        ${btnHtml}
+                    </div>
+                `;
+            });
+        }
+
+        function buyUpgrade(id, cost) {
+            const up = UPGRADES.find(u => u.id === id);
+            if (state.money >= cost && !up.active) {
+                state.money -= cost;
+                up.active = true;
+                if (id === 2) state.sustainability = Math.min(100, state.sustainability + 10);
+                log(`Equipamento instalado: ${up.name}. Benefício ativado.`);
+                renderUpgrades();
+                renderSilo();
+                updateUI();
+                updateScenery();
+            } else {
+                log("Moedas insuficientes para adquirir esta tecnologia.");
+            }
+        }
+
+        // SISTEMA ANTI-ROUBO DE FAZENDA: QUICK TIME EVENT (QTE)
+        function triggerThiefEvent() {
+            if (qte.active) return; // Evita eventos sobrepostos
+
+            // Sorteia chance de tentativa de roubo (40% de chance a cada ciclo)
+            if (Math.random() > 0.40) return;
+
+            qte.active = true;
+            qte.clicks = 0;
+            
+            // Define dificuldade (Nível 12 com cerca reduz a velocidade do esgotamento)
+            qte.maxClicks = Math.floor(Math.random() * (12 - 7) + 7);
+            qte.timeLeft = 100;
+
+            // Sorteia uma tecla física aleatória para o QTE (A, S, D, W, E)
+            const keys = ['A', 'S', 'D', 'W', 'E'];
+            qte.key = keys[Math.floor(Math.random() * keys.length)];
+
+            // Mostra tela do QTE
+            document.getElementById('qte-key-display').innerText = qte.key;
+            document.getElementById('qte-clicks-needed').innerText = qte.maxClicks - qte.clicks;
+            document.getElementById('qte-screen').style.display = 'flex';
+
+            // Velocidade com que o tempo drena
+            let drainSpeed = UPGRADES[3].active ? 1.5 : 2.5; 
+
+            qte.timer = setInterval(() => {
+                qte.timeLeft -= drainSpeed;
+                document.getElementById('qte-timer-fill').style.width = `${qte.timeLeft}%`;
+
+                if (qte.timeLeft <= 0) {
+                    // JOGADOR PERDEU O EVENTO (ROUBADO)
+                    clearInterval(qte.timer);
+                    document.getElementById('qte-screen').style.display = 'none';
+                    qte.active = false;
+                    
+                    // Consequência do roubo
+                    state.money = Math.max(0, state.money - 50);
+                    state.sustainability = Math.max(0, state.sustainability - 10);
+                    log("⚠️ Fracasso! Invasores roubaram $50 moedas e violaram a segurança biológica da fazenda.");
+                    updateUI();
+                }
+            }, 100);
+        }
+
+        // CAPTURA DOS CLIQUES NO TECLADO PARA O EVENTO QTE
+        window.addEventListener('keydown', (e) => {
+            if (!qte.active) return;
+
+            if (e.key.toUpperCase() === qte.key) {
+                qte.clicks++;
+                document.getElementById('qte-clicks-needed').innerText = qte.maxClicks - qte.clicks;
+
+                if (qte.clicks >= qte.maxClicks) {
+                    // JOGADOR DEFNDEU COM SUCESSO
+                    clearInterval(qte.timer);
+                    document.getElementById('qte-screen').style.display = 'none';
+                    qte.active = false;
+                    
+                    state.sustainability = Math.min(100, state.sustainability + 5);
+                    log("🛡️ Sucesso! Você agiu com precisão e afastou os invasores sem usar violência, mantendo a ordem ecológica.");
+                    gainXP(30);
+                    updateUI();
+                }
+            }
+        });
+
+        function log(msg) {
+            const box = document.getElementById('log-box');
+            box.innerHTML += `<br>👉 ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
